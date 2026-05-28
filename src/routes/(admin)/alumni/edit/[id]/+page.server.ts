@@ -1,4 +1,4 @@
-import { db } from "$lib/server/db";
+import { db } from '$lib/server/db';
 
 export async function load({
 	params
@@ -8,8 +8,10 @@ export async function load({
 		await db.execute({
 			sql: `
 				SELECT *
-				FROM alumni
-				WHERE id = ?
+				FROM users
+				WHERE
+					id = ?
+					AND role = 'alumni'
 			`,
 			args: [params.id]
 		});

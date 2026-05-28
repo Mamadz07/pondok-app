@@ -1,11 +1,18 @@
-import { json } from "@sveltejs/kit";
+import { json } from '@sveltejs/kit';
 
-export async function POST({ cookies }) {
-  cookies.delete("session", {
-    path: "/"
-  });
+export async function POST({
+	cookies
+}) {
 
-  return json({
-    success: true
-  });
+	cookies.delete(
+		'session',
+		{
+			path: '/'
+		}
+	);
+
+	return json({
+		success: true,
+		message: 'Logout berhasil'
+	});
 }

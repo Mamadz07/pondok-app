@@ -1,63 +1,95 @@
-import { db } from "$lib/server/db";
-import { json } from "@sveltejs/kit";
-import {
-	alumniSchema,
-	updateAlumniSchema
-} from "$lib/validations/alumni";
+import { db } from '$lib/server/db';
+import { json, type Cookies } from '@sveltejs/kit';
+
+function authorize(cookies: Cookies) {
+
+	const session =
+		cookies.get('session');
+
+	if (!session) {
+
+		return {
+			error: json(
+				{
+					message:
+						'Unauthorized'
+				},
+				{
+					status: 401
+				}
+			)
+		};
+	}
+
+	const admin =
+		JSON.parse(session);
+
+	if (
+		admin.role !== 'admin'
+	) {
+
+		return {
+			error: json(
+				{
+					message:
+						'Forbidden'
+				},
+				{
+					status: 403
+				}
+			)
+		};
+	}
+
+	return {
+		admin
+	};
+}
 
 
-// CREATE
-export async function POST({
+// JADIKAN ALUMNI
+export async function PUT({
 	request,
 	cookies
 }) {
 
-	const session =
-		cookies.get("session");
+	const auth =
+		authorize(cookies);
 
-	if (!session) {
-		return json(
-			{
-				message: "Unauthorized"
-			},
-			{
-				status: 401
-			}
-		);
+	if (auth.error) {
+		return auth.error;
 	}
 
-	const user =
-		JSON.parse(session);
+	const {
+		id,
+		tahun_lulus,
+		nama,
+		no_hp,
+		tempat_lahir,
+		tanggal_lahir,
+		alamat,
+		nama_wali,
+		no_hp_wali
+	} = await request.json();
 
+	// VALIDASI
 	if (
-		user.role !== "operator"
+		!id ||
+		!tahun_lulus ||
+		!nama ||
+		!no_hp ||
+		!tempat_lahir ||
+		!tanggal_lahir ||
+		!alamat ||
+		!nama_wali ||
+		!no_hp_wali
 	) {
-		return json(
-			{
-				message: "Forbidden"
-			},
-			{
-				status: 403
-			}
-		);
-	}
 
-	const body =
-		await request.json();
-
-	const validation =
-		alumniSchema.safeParse(
-			body
-		);
-
-	if (
-		!validation.success
-	) {
 		return json(
 			{
 				success: false,
-				errors:
-					validation.error.flatten()
+				message:
+					'Data belum lengkap'
 			},
 			{
 				status: 400
@@ -65,176 +97,117 @@ export async function POST({
 		);
 	}
 
-	const {
-		nama,
-		tahun_lulus,
-		alamat,
-		pekerjaan
-	} = body;
+	// CEK USER
+	const result =
+		await db.execute({
+			sql: `
+				SELECT *
+				FROM users
+				WHERE id = ?
+			`,
+			args: [id]
+		});
 
+	const user =
+		result.rows[0];
+
+	if (!user) {
+
+		return json(
+			{
+				success: false,
+				message:
+					'User tidak ditemukan'
+			},
+			{
+				status: 404
+			}
+		);
+	}
+
+	// UPDATE JADI ALUMNI
 	await db.execute({
 		sql: `
-			INSERT INTO alumni (
-				nama,
-				tahun_lulus,
-				alamat,
-				pekerjaan
-			)
-			VALUES (?, ?, ?, ?)
+			UPDATE users
+			SET
+				role = ?,
+				status = ?,
+				tahun_lulus = ?,
+				nama = ?,
+				no_hp = ?,
+				tempat_lahir = ?,
+				tanggal_lahir = ?,
+				alamat = ?,
+				nama_wali = ?,
+				no_hp_wali = ?
+			WHERE id = ?
 		`,
 		args: [
-			nama,
+			'alumni',
+			'lulus',
 			tahun_lulus,
+			nama,
+			no_hp,
+			tempat_lahir,
+			tanggal_lahir,
 			alamat,
-			pekerjaan
+			nama_wali,
+			no_hp_wali,
+			id
 		]
 	});
 
 	return json({
-		success: true
+		success: true,
+		message:
+			'Santri berhasil dijadikan alumni'
 	});
 }
 
 
-// DELETE
+// HAPUS USER
 export async function DELETE({
 	request,
 	cookies
 }) {
 
-	const session =
-		cookies.get("session");
+	const auth =
+		authorize(cookies);
 
-	if (!session) {
-		return json(
-			{
-				message: "Unauthorized"
-			},
-			{
-				status: 401
-			}
-		);
-	}
-
-	const user =
-		JSON.parse(session);
-
-	if (
-		user.role !== "operator"
-	) {
-		return json(
-			{
-				message: "Forbidden"
-			},
-			{
-				status: 403
-			}
-		);
+	if (auth.error) {
+		return auth.error;
 	}
 
 	const { id } =
 		await request.json();
 
+	// VALIDASI
+	if (!id) {
+
+		return json(
+			{
+				success: false,
+				message:
+					'ID tidak valid'
+			},
+			{
+				status: 400
+			}
+		);
+	}
+
+	// DELETE USER
 	await db.execute({
 		sql: `
-			DELETE FROM alumni
+			DELETE FROM users
 			WHERE id = ?
 		`,
 		args: [id]
 	});
 
 	return json({
-		success: true
-	});
-}
-
-// UPDATE
-export async function PUT({
-	request,
-	cookies
-}) {
-
-	const session =
-		cookies.get("session");
-
-	if (!session) {
-		return json(
-			{
-				message: "Unauthorized"
-			},
-			{
-				status: 401
-			}
-		);
-	}
-
-	const user =
-		JSON.parse(session);
-
-	if (
-		user.role !== "operator"
-	) {
-		return json(
-			{
-				message: "Forbidden"
-			},
-			{
-				status: 403
-			}
-		);
-	}
-
-	const body =
-		await request.json();
-
-	const validation =
-	updateAlumniSchema.safeParse(
-		body
-	);
-
-	if (
-		!validation.success
-	) {
-		return json(
-			{
-				success: false,
-				errors:
-					validation.error.flatten()
-			},
-			{
-				status: 400
-			}
-		);
-	}
-
-	const {
-		id,
-		nama,
-		tahun_lulus,
-		alamat,
-		pekerjaan
-	} = body;
-
-	await db.execute({
-		sql: `
-			UPDATE alumni
-			SET
-				nama = ?,
-				tahun_lulus = ?,
-				alamat = ?,
-				pekerjaan = ?
-			WHERE id = ?
-		`,
-		args: [
-			nama,
-			tahun_lulus,
-			alamat,
-			pekerjaan,
-			id
-		]
-	});
-
-	return json({
-		success: true
+		success: true,
+		message:
+			'User berhasil dihapus'
 	});
 }

@@ -1,60 +1,85 @@
-import { db } from "$lib/server/db";
-import { comparePassword } from "$lib/server/auth";
-import { json } from "@sveltejs/kit";
+import { db } from '$lib/server/db';
+import { comparePassword } from '$lib/server/auth';
+import { json } from '@sveltejs/kit';
 
-export async function POST({ request, cookies }) {
-  const { username, password } =
-    await request.json();
+export async function POST({
+	request,
+	cookies
+}) {
 
-  const result = await db.execute({
-    sql: `
-      SELECT * FROM users
-      WHERE username = ?
-    `,
-    args: [username]
-  });
+	const {
+		username,
+		password
+	} = await request.json();
 
-  const user = result.rows[0];
+	// cari admin
+	const result =
+		await db.execute({
+			sql: `
+				SELECT *
+				FROM admin
+				WHERE username = ?
+			`,
+			args: [username]
+		});
 
-  if (!user) {
-    return json(
-      {
-        success: false,
-        message: "User not found"
-      },
-      { status: 401 }
-    );
-  }
+	const admin =
+		result.rows[0];
 
-  const valid = await comparePassword(
-    password,
-    user.password as string
-  );
+	if (!admin) {
 
-  if (!valid) {
-    return json(
-      {
-        success: false,
-        message: "Wrong password"
-      },
-      { status: 401 }
-    );
-  }
+		return json(
+			{
+				success: false,
+				message: 'Admin tidak ditemukan'
+			},
+			{
+				status: 401
+			}
+		);
+	}
 
-  cookies.set("session", JSON.stringify({
-    id: user.id,
-    username: user.username,
-    role: user.role
-  }), {
-    path: "/",
-    httpOnly: true,
-    sameSite: "strict",
-    secure: false,
-    maxAge: 60 * 60 * 24
-  });
+	// cek password
+	const valid =
+		await comparePassword(
+			password,
+			admin.password as string
+		);
 
-  return json({
-    success: true,
-    role: user.role
-  });
+	if (!valid) {
+
+		return json(
+			{
+				success: false,
+				message: 'Password salah'
+			},
+			{
+				status: 401
+			}
+		);
+	}
+
+	// simpan session
+	cookies.set(
+		'session',
+
+		JSON.stringify({
+			id: admin.id,
+			username: admin.username,
+			role: 'admin'
+		}),
+
+		{
+			path: '/',
+			httpOnly: true,
+			sameSite: 'strict',
+			secure: false,
+			maxAge: 60 * 60 * 24
+		}
+	);
+
+	return json({
+		success: true,
+		role: 'admin'
+	});
 }

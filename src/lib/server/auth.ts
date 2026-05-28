@@ -1,29 +1,53 @@
-import bcrypt from "bcryptjs";
-import { db } from "$lib/server/db";
+import bcrypt from 'bcryptjs';
+import { db } from '$lib/server/db';
 
-export async function hashPassword(password: string) {
-  return await bcrypt.hash(password, 10);
+// HASH PASSWORD
+export async function hashPassword(
+	password: string
+) {
+
+	return await bcrypt.hash(
+		password,
+		10
+	);
 }
 
+// COMPARE PASSWORD
 export async function comparePassword(
-  password: string,
-  hash: string
+	password: string,
+	hash: string
 ) {
-  return await bcrypt.compare(password, hash);
+
+	return await bcrypt.compare(
+		password,
+		hash
+	);
 }
 
+// CREATE ADMIN
 export async function createUser(
-  username: string,
-  password: string,
-  role: string
+	username: string,
+	password: string
 ) {
-  const hashed = await hashPassword(password);
 
-  await db.execute({
-    sql: `
-      INSERT INTO users (username, password, role)
-      VALUES (?, ?, ?)
-    `,
-    args: [username, hashed, role]
-  });
-}   
+	const hashed =
+		await hashPassword(
+			password
+		);
+
+	await db.execute({
+		sql: `
+			INSERT INTO admin
+			(
+				username,
+				password
+			)
+			VALUES (?, ?)
+		`,
+
+		args: [
+			username,
+			hashed
+		]
+	});
+}

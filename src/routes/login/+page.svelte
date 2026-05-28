@@ -1,62 +1,154 @@
 <script lang="ts">
-  let username = "";
-  let password = "";
-  let error = "";
+	import { goto } from '$app/navigation';
+	import { toast } from 'svelte-sonner';
 
-  async function login() {
-    const res = await fetch("/api/login", {
-      method: "POST",
-      headers: {
-        "Content-Type":
-          "application/json"
-      },
-      body: JSON.stringify({
-        username,
-        password
-      })
-    });
+	let username = '';
+	let password = '';
 
-    const data = await res.json();
+	let loading = false;
 
-    if (!data.success) {
-      error = data.message;
-      return;
-    }
+	function kembali() {
+		goto('/');
+	}
 
-    window.location.href = "/dashboard";
-  }
+	async function login() {
+
+		if (!username || !password) {
+
+			toast.error(
+				'Username dan password wajib diisi'
+			);
+
+			return;
+		}
+
+		loading = true;
+
+		const res = await fetch(
+			'/api/login',
+			{
+				method: 'POST',
+
+				headers: {
+					'Content-Type':
+						'application/json'
+				},
+
+				body: JSON.stringify({
+					username,
+					password
+				})
+			}
+		);
+
+		const data =
+			await res.json();
+
+		if (!data.success) {
+
+			toast.error(
+				data.message ||
+				'Login gagal'
+			);
+
+			loading = false;
+			return;
+		}
+
+		toast.success(
+			'Login berhasil'
+		);
+
+		window.location.href =
+			'/dashboard';
+	}
 </script>
 
-<div class="min-h-screen flex items-center justify-center">
-  <div class="w-full max-w-sm p-6 border rounded-xl">
-    <h1 class="text-2xl font-bold mb-4">
-      Login
-    </h1>
+<svelte:head>
+	<title>Login Admin</title>
+</svelte:head>
 
-    <input
-      bind:value={username}
-      placeholder="Username"
-      class="w-full border p-2 mb-3 rounded"
-    />
+<div class="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black flex items-center justify-center p-6 relative overflow-hidden">
 
-    <input
-      type="password"
-      bind:value={password}
-      placeholder="Password"
-      class="w-full border p-2 mb-3 rounded"
-    />
+	<!-- Blur -->
+	<div class="absolute top-0 left-0 w-72 h-72 bg-white/10 rounded-full blur-3xl"></div>
 
-    {#if error}
-      <p class="text-red-500 mb-3">
-        {error}
-      </p>
-    {/if}
+	<div class="absolute bottom-0 right-0 w-72 h-72 bg-white/10 rounded-full blur-3xl"></div>
 
-    <button
-      on:click={login}
-      class="w-full bg-black text-white p-2 rounded"
-    >
-      Login
-    </button>
-  </div>
+	<!-- Card -->
+	<div class="relative w-full max-w-md bg-white/95 backdrop-blur-xl rounded-[32px] shadow-2xl overflow-hidden border border-white/20">
+
+		<!-- Header -->
+		<div class="bg-black text-white p-8">
+
+			<button
+				onclick={kembali}
+				class="mb-6 bg-white/10 hover:bg-white/20 transition px-4 py-2 rounded-xl text-sm"
+			>
+				← Kembali
+			</button>
+
+			<h1 class="text-4xl font-bold mb-3">
+				Login Admin
+			</h1>
+
+			<p class="text-gray-300">
+				Masuk untuk mengelola data pondok
+			</p>
+
+		</div>
+
+		<!-- Form -->
+		<div class="p-8 space-y-6">
+
+			<!-- Username -->
+			<div>
+
+				<label class="block mb-3 font-semibold text-gray-700">
+					Username
+				</label>
+
+				<input
+					bind:value={username}
+					placeholder="Masukkan username"
+					class="w-full border border-gray-200 focus:border-black focus:ring-2 focus:ring-black/10 outline-none rounded-2xl px-5 py-4 transition"
+				/>
+
+			</div>
+
+			<!-- Password -->
+			<div>
+
+				<label class="block mb-3 font-semibold text-gray-700">
+					Password
+				</label>
+
+				<input
+					type="password"
+					bind:value={password}
+					placeholder="Masukkan password"
+					class="w-full border border-gray-200 focus:border-black focus:ring-2 focus:ring-black/10 outline-none rounded-2xl px-5 py-4 transition"
+				/>
+
+			</div>
+
+			<!-- Button -->
+			<button
+				onclick={login}
+				disabled={loading}
+				class="w-full bg-black text-white py-4 rounded-2xl font-semibold text-lg hover:scale-[1.01] active:scale-[0.99] transition disabled:opacity-50"
+			>
+
+				{#if loading}
+					Memproses...
+				{:else}
+					Login
+				{/if}
+
+			</button>
+
+		</div>
+
+	</div>
+
 </div>

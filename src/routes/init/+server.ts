@@ -1,65 +1,50 @@
-import { db } from "$lib/server/db";
-import { json } from "@sveltejs/kit";
+import { db } from '$lib/server/db';
+import { json } from '@sveltejs/kit';
 
 export async function GET() {
-  // USERS
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT UNIQUE,
-      password TEXT,
-      role TEXT
-    )
-  `);
 
-  // SANTRI
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS santri (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      nama TEXT,
-      tempat_lahir TEXT,
-      tanggal_lahir TEXT,
-      alamat TEXT,
-      nama_wali TEXT,
-      no_hp_wali TEXT,
-      tanggal_masuk TEXT,
-      status TEXT
-    )
-  `);
+	// ADMIN
+	await db.execute(`
+		CREATE TABLE IF NOT EXISTS admin (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-  // PENDAFTAR
-  await db.execute(`
-	CREATE TABLE IF NOT EXISTS pendaftar (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
+			username TEXT UNIQUE,
+			password TEXT
+		)
+	`);
 
-		nama TEXT,
-		tempat_lahir TEXT,
-		tanggal_lahir TEXT,
-		alamat TEXT,
+	// USERS
+	await db.execute(`
+		CREATE TABLE IF NOT EXISTS users (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-		nama_wali TEXT,
-		no_hp_wali TEXT,
+			nama TEXT NOT NULL,
 
-		tanggal_daftar TEXT,
+			username TEXT,
+			password TEXT,
 
-		status TEXT DEFAULT 'pending',
+			no_hp TEXT,
+			alamat TEXT,
 
-		catatan TEXT
-	)
-`);
+			tempat_lahir TEXT,
+			tanggal_lahir TEXT,
 
-  // ALUMNI
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS alumni (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      nama TEXT,
-      tahun_lulus INTEGER,
-      alamat TEXT,
-      pekerjaan TEXT
-    )
-  `);
+			nama_wali TEXT,
+			no_hp_wali TEXT,
 
-  return json({
-    message: "Database initialized"
-  });
+			tanggal_daftar TEXT,
+			tanggal_masuk TEXT,
+
+			tahun_lulus INTEGER,
+
+			role TEXT DEFAULT 'pendaftar',
+
+			status TEXT DEFAULT 'pending'
+		)
+	`);
+
+	return json({
+		success: true,
+		message: 'Database initialized'
+	});
 }

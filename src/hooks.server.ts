@@ -1,35 +1,46 @@
-import { redirect } from "@sveltejs/kit";
+import { redirect, type Handle } from '@sveltejs/kit';
 
-export async function handle({
-  event,
-  resolve
-}) {
-  const session =
-    event.cookies.get("session");
+export const handle: Handle = async ({
+	event,
+	resolve
+}) => {
+	const session =
+		event.cookies.get('session');
 
-  if (session) {
-    event.locals.user =
-      JSON.parse(session);
-  }
+	// ambil user dari cookie
+	if (session) {
+		event.locals.user =
+			JSON.parse(session);
+	}
 
-  const protectedRoutes = [
-    "/dashboard",
-    "/santri",
-    "/alumni",
-    "/pendaftar"
-  ];
+	// route yang harus login
+	const protectedRoutes = [
+		'/dashboard',
+		'/santri',
+		'/alumni',
+		'/pendaftar'
+	];
 
-  const isProtected =
-    protectedRoutes.some((route) =>
-      event.url.pathname.startsWith(route)
-    );
+	const isProtected =
+		protectedRoutes.some((route) =>
+			event.url.pathname.startsWith(route)
+		);
 
-  if (
-    isProtected &&
-    !event.locals.user
-  ) {
-    throw redirect(302, "/login");
-  }
+	// belum login
+	if (
+		isProtected &&
+		!event.locals.user
+	) {
+		throw redirect(302, '/login');
+	}
 
-  return resolve(event);
-}
+	// sudah login tapi buka login lagi
+	if (
+		event.locals.user &&
+		event.url.pathname === '/login'
+	) {
+		throw redirect(302, '/dashboard');
+	}
+
+	return resolve(event);
+};

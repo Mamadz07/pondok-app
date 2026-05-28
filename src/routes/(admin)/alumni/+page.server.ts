@@ -1,4 +1,4 @@
-import { db } from "$lib/server/db";
+import { db } from '$lib/server/db';
 
 export async function load({
 	url,
@@ -7,40 +7,52 @@ export async function load({
 
 	const search =
 		url.searchParams.get(
-			"search"
-		) || "";
+			'search'
+		) || '';
 
 	let result;
 
+	// SEARCH
 	if (search) {
 
 		result =
 			await db.execute({
 				sql: `
 					SELECT *
-					FROM alumni
-					WHERE nama LIKE ?
+					FROM users
+					WHERE
+						role = 'alumni'
+						AND nama LIKE ?
 					ORDER BY id DESC
 				`,
+
 				args: [
 					`%${search}%`
 				]
 			});
 
-	} else {
+	}
+
+	// ALL
+	else {
 
 		result =
 			await db.execute(`
 				SELECT *
-				FROM alumni
+				FROM users
+				WHERE role = 'alumni'
 				ORDER BY id DESC
 			`);
 
 	}
 
 	return {
-		alumni: result.rows,
+		alumni:
+			result.rows,
+
 		search,
-		user: locals.user
+
+		user:
+			locals.user
 	};
 }

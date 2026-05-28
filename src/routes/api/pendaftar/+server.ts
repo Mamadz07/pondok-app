@@ -1,85 +1,224 @@
-import { db } from "$lib/server/db";
-import { json } from "@sveltejs/kit";
+import { db } from '$lib/server/db';
+import { json } from '@sveltejs/kit';
+import type { Cookies } from '@sveltejs/kit';
+
+function authorize(cookies: Cookies) {
+
+	const session =
+		cookies.get('session');
+
+	if (!session) {
+
+		return {
+			error: json(
+				{
+					message:
+						'Unauthorized'
+				},
+				{
+					status: 401
+				}
+			)
+		};
+	}
+
+	const admin =
+		JSON.parse(session);
+
+	if (
+		admin.role !== 'admin'
+	) {
+
+		return {
+			error: json(
+				{
+					message:
+						'Forbidden'
+				},
+				{
+					status: 403
+				}
+			)
+		};
+	}
+
+	return {
+		admin
+	};
+}
 
 
-// CREATE PENDAFTARAN
+// CREATE PENDAFTAR
 export async function POST({
 	request
 }) {
 
-	const body =
-		await request.json();
-
 	const {
 		nama,
+		no_hp,
 		tempat_lahir,
 		tanggal_lahir,
 		alamat,
 		nama_wali,
 		no_hp_wali
-	} = body;
+	} = await request.json();
 
+	// VALIDASI FORM
+	if (
+		!nama ||
+		!no_hp ||
+		!tempat_lahir ||
+		!tanggal_lahir ||
+		!alamat ||
+		!nama_wali ||
+		!no_hp_wali
+	) {
+
+		return json(
+			{
+				success: false,
+				message:
+					'Semua form wajib diisi'
+			},
+			{
+				status: 400
+			}
+		);
+	}
+
+	// VALIDASI NO HP SANTRI
+	if (
+		!no_hp.startsWith('08') ||
+		!/^[0-9]+$/.test(no_hp) ||
+		no_hp.length < 10
+	) {
+
+		return json(
+			{
+				success: false,
+				message:
+					'Nomor HP santri tidak valid'
+			},
+			{
+				status: 400
+			}
+		);
+	}
+
+	// VALIDASI NO HP WALI
+	if (
+		!no_hp_wali.startsWith('08') ||
+		!/^[0-9]+$/.test(no_hp_wali) ||
+		no_hp_wali.length < 10
+	) {
+
+		return json(
+			{
+				success: false,
+				message:
+					'Nomor HP wali tidak valid'
+			},
+			{
+				status: 400
+			}
+		);
+	}
+
+	// INSERT PENDAFTAR
 	await db.execute({
 		sql: `
-			INSERT INTO pendaftar (
+			INSERT INTO users
+			(
 				nama,
+				no_hp,
 				tempat_lahir,
 				tanggal_lahir,
 				alamat,
 				nama_wali,
 				no_hp_wali,
 				tanggal_daftar,
+				role,
 				status
 			)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`,
 		args: [
 			nama,
+			no_hp,
 			tempat_lahir,
 			tanggal_lahir,
 			alamat,
 			nama_wali,
 			no_hp_wali,
-
 			new Date()
-				.toISOString(),
-
-			"pending"
+				.toISOString()
+				.split('T')[0],
+			'pendaftar',
+			'pending'
 		]
 	});
 
 	return json({
-		success: true
+		success: true,
+		message:
+			'Pendaftaran berhasil'
 	});
 }
 
-// APPROVE
+
+// SETUJUI PENDAFTAR
 export async function PUT({
-	request
+	request,
+	cookies
 }) {
+
+	const auth =
+		authorize(cookies);
+
+	if (auth.error) {
+		return auth.error;
+	}
 
 	const { id } =
 		await request.json();
 
-	// AMBIL DATA
+	// VALIDASI ID
+	if (!id) {
+
+		return json(
+			{
+				success: false,
+				message:
+					'ID tidak valid'
+			},
+			{
+				status: 400
+			}
+		);
+	}
+
+	// CEK USER
 	const result =
 		await db.execute({
 			sql: `
 				SELECT *
-				FROM pendaftar
+				FROM users
 				WHERE id = ?
+				AND role = 'pendaftar'
 			`,
 			args: [id]
 		});
 
-	const data =
+	const user =
 		result.rows[0];
 
-	if (!data) {
+	if (!user) {
+
 		return json(
 			{
+				success: false,
 				message:
-					"Data tidak ditemukan"
+					'Pendaftar tidak ditemukan'
 			},
 			{
 				status: 404
@@ -87,69 +226,106 @@ export async function PUT({
 		);
 	}
 
-	// PINDAH KE SANTRI
+	// UPDATE JADI SANTRI
 	await db.execute({
 		sql: `
-			INSERT INTO santri (
-				nama,
-				tempat_lahir,
-				tanggal_lahir,
-				alamat,
-				nama_wali,
-				no_hp_wali,
-				tanggal_masuk,
-				status
-			)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			UPDATE users
+			SET
+				role = ?,
+				status = ?,
+				tanggal_masuk = ?
+			WHERE id = ?
 		`,
 		args: [
-			data.nama,
-			data.tempat_lahir,
-			data.tanggal_lahir,
-			data.alamat,
-			data.nama_wali,
-			data.no_hp_wali,
-
+			'santri',
+			'aktif',
 			new Date()
-				.toISOString(),
-
-			"Aktif"
+				.toISOString()
+				.split('T')[0],
+			id
 		]
 	});
 
-	// UPDATE STATUS
-	await db.execute({
-		sql: `
-			UPDATE pendaftar
-			SET status = 'approved'
-			WHERE id = ?
-		`,
-		args: [id]
-	});
-
 	return json({
-		success: true
+		success: true,
+		message:
+			'Pendaftar berhasil dijadikan santri'
 	});
 }
 
 
-// REJECT
+// DELETE PENDAFTAR
 export async function DELETE({
-	request
+	request,
+	cookies
 }) {
+
+	const auth =
+		authorize(cookies);
+
+	if (auth.error) {
+		return auth.error;
+	}
 
 	const { id } =
 		await request.json();
 
+	// VALIDASI ID
+	if (!id) {
+
+		return json(
+			{
+				success: false,
+				message:
+					'ID tidak valid'
+			},
+			{
+				status: 400
+			}
+		);
+	}
+
+	// CEK USER
+	const result =
+		await db.execute({
+			sql: `
+				SELECT *
+				FROM users
+				WHERE id = ?
+				AND role = 'pendaftar'
+			`,
+			args: [id]
+		});
+
+	const user =
+		result.rows[0];
+
+	if (!user) {
+
+		return json(
+			{
+				success: false,
+				message:
+					'Pendaftar tidak ditemukan'
+			},
+			{
+				status: 404
+			}
+		);
+	}
+
+	// DELETE USER
 	await db.execute({
 		sql: `
-			DELETE FROM pendaftar
+			DELETE FROM users
 			WHERE id = ?
 		`,
 		args: [id]
 	});
 
 	return json({
-		success: true
+		success: true,
+		message:
+			'Pendaftar berhasil dihapus'
 	});
 }

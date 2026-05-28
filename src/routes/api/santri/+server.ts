@@ -1,157 +1,243 @@
-import { db } from "$lib/server/db";
-import { json, error } from "@sveltejs/kit";
-import { santriSchema } from "$lib/validations/santri";
 
-function authorize({ cookies }) {
-  const session = cookies.get("session");
+import { db } from '$lib/server/db';
+import {
+	json,
+	error,
+	type Cookies
+} from '@sveltejs/kit';
 
-  if (!session) {
-    throw error(401, {
-      message: "Unauthorized"
-    });
-  }
+import { santriSchema }
+	from '$lib/validations/santri';
 
-  const user = JSON.parse(session);
+function authorize(
+	cookies: Cookies
+) {
 
-  if (user.role !== "operator") {
-    throw error(403, {
-      message: "Forbidden"
-    });
-  }
+	const session =
+		cookies.get('session');
 
-  return user;
-}
+	if (!session) {
 
-// CREATE
-export async function POST({ request, cookies }) {
-  authorize({ cookies });
+		throw error(401, {
+			message:
+				'Unauthorized'
+		});
+	}
 
-  const body = await request.json();
-  const validation =
-  santriSchema.safeParse(body);
+	const user =
+		JSON.parse(session);
 
-if (!validation.success) {
-	return json(
-		{
-			success: false,
-			errors:
-				validation.error.flatten()
-		},
-		{
-			status: 400
-		}
-	);
-}
+	// IZINKAN ADMIN & OPERATOR
+	if (
+		user.role !== 'admin' &&
+		user.role !== 'operator'
+	) {
 
-  const {
-    nama,
-    tempat_lahir,
-    tanggal_lahir,
-    alamat,
-    nama_wali,
-    no_hp_wali,
-    tanggal_masuk,
-    status
-  } = body;
+		throw error(403, {
+			message:
+				'Forbidden'
+		});
+	}
 
-  await db.execute({
-    sql: `
-      INSERT INTO santri (
-        nama,
-        tempat_lahir,
-        tanggal_lahir,
-        alamat,
-        nama_wali,
-        no_hp_wali,
-        tanggal_masuk,
-        status
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `,
-    args: [
-      nama,
-      tempat_lahir,
-      tanggal_lahir,
-      alamat,
-      nama_wali,
-      no_hp_wali,
-      tanggal_masuk,
-      status
-    ]
-  });
-
-  return json({
-    success: true
-  });
+	return user;
 }
 
 
-// UPDATE
-export async function PUT({ request, cookies }) {
-  authorize({ cookies });
+// CREATE SANTRI
+export async function POST({
+	request,
+	cookies
+}) {
 
-  const body = await request.json();
+	authorize(cookies);
 
-  const {
-    id,
-    nama,
-    tempat_lahir,
-    tanggal_lahir,
-    alamat,
-    nama_wali,
-    no_hp_wali,
-    tanggal_masuk,
-    status
-  } = body;
+	const body =
+		await request.json();
 
-  await db.execute({
-    sql: `
-      UPDATE santri
-      SET
-        nama = ?,
-        tempat_lahir = ?,
-        tanggal_lahir = ?,
-        alamat = ?,
-        nama_wali = ?,
-        no_hp_wali = ?,
-        tanggal_masuk = ?,
-        status = ?
-      WHERE id = ?
-    `,
-    args: [
-      nama,
-      tempat_lahir,
-      tanggal_lahir,
-      alamat,
-      nama_wali,
-      no_hp_wali,
-      tanggal_masuk,
-      status,
-      id
-    ]
-  });
+	const validation =
+		santriSchema.safeParse(
+			body
+		);
 
-  return json({
-    success: true
-  });
+	if (!validation.success) {
+
+		return json(
+			{
+				success: false,
+				errors:
+					validation.error.flatten()
+			},
+			{
+				status: 400
+			}
+		);
+	}
+
+	const {
+		nama,
+		no_hp,
+		tempat_lahir,
+		tanggal_lahir,
+		alamat,
+		nama_wali,
+		no_hp_wali,
+		tanggal_masuk
+	} = body;
+
+	await db.execute({
+		sql: `
+			INSERT INTO users
+			(
+				nama,
+				no_hp,
+				tempat_lahir,
+				tanggal_lahir,
+				alamat,
+				nama_wali,
+				no_hp_wali,
+				tanggal_masuk,
+				role,
+				status
+			)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`,
+		args: [
+			nama,
+			no_hp,
+			tempat_lahir,
+			tanggal_lahir,
+			alamat,
+			nama_wali,
+			no_hp_wali,
+			tanggal_masuk,
+			'santri',
+			'aktif'
+		]
+	});
+
+	return json({
+		success: true,
+		message:
+			'Santri berhasil ditambahkan'
+	});
 }
 
 
-// DELETE
-export async function DELETE({ request, cookies }) {
-  authorize({ cookies });
+// UPDATE SANTRI
+export async function PUT({
+	request,
+	cookies
+}) {
 
-  const { id } = await request.json();
+	authorize(cookies);
 
-  await db.execute({
-    sql: `
-      DELETE FROM santri
-      WHERE id = ?
-    `,
-    args: [id]
-  });
+	const body =
+		await request.json();
 
-  return json({
-    success: true
-  });
+	const {
+		id,
+		nama,
+		no_hp,
+		tempat_lahir,
+		tanggal_lahir,
+		alamat,
+		nama_wali,
+		no_hp_wali
+	} = body;
+
+	// VALIDASI
+	if (
+		!id ||
+		!nama ||
+		!no_hp ||
+		!tempat_lahir ||
+		!tanggal_lahir ||
+		!alamat ||
+		!nama_wali ||
+		!no_hp_wali
+	) {
+
+		return json(
+			{
+				success: false,
+				message:
+					'Semua form wajib diisi'
+			},
+			{
+				status: 400
+			}
+		);
+	}
+
+	await db.execute({
+		sql: `
+			UPDATE users
+			SET
+				nama = ?,
+				no_hp = ?,
+				tempat_lahir = ?,
+				tanggal_lahir = ?,
+				alamat = ?,
+				nama_wali = ?,
+				no_hp_wali = ?
+			WHERE id = ?
+		`,
+		args: [
+			nama,
+			no_hp,
+			tempat_lahir,
+			tanggal_lahir,
+			alamat,
+			nama_wali,
+			no_hp_wali,
+			id
+		]
+	});
+
+	return json({
+		success: true,
+		message:
+			'Data santri berhasil diupdate'
+	});
+}
+
+
+// DELETE SANTRI
+export async function DELETE({
+	request,
+	cookies
+}) {
+
+	authorize(cookies);
+
+	const { id } =
+		await request.json();
+
+	if (!id) {
+
+		return json(
+			{
+				success: false,
+				message:
+					'ID tidak valid'
+			},
+			{
+				status: 400
+			}
+		);
+	}
+
+	await db.execute({
+		sql: `
+			DELETE FROM users
+			WHERE id = ?
+		`,
+		args: [id]
+	});
+
+	return json({
+		success: true,
+		message:
+			'Data santri berhasil dihapus'
+	});
 }
