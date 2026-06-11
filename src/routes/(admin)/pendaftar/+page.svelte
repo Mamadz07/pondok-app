@@ -1,4 +1,3 @@
-```svelte
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
